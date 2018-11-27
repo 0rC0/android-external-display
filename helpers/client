@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Helper functions to get info about the android device (taht will be used as external display)
+# Helper functions to get info about the android device (that will be used as external display)
 
 # Return client display resolution as "{WIDTH} {HEIGHT}"
 client_get_resolution() {
@@ -16,4 +16,3 @@ client_get_dpi() {
 client_get_ip() {
   $ADB shell ip route | grep src | sed 's/^.*src \([^ ]*\).*$/\1/'
 }
-

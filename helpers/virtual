@@ -4,7 +4,7 @@
 
 # Clean everything
 _rm_virt_display() {
-  
+
   # TODO: close x11vnc
   kill $(pgrep x11vnc -a | grep "${virtual_port}" | awk '{ print $1 }') 2> /dev/null
 
@@ -24,34 +24,44 @@ _rm_virt_display() {
 #  - scale
 #  - client ip (to be used as external monitor)
 virtual_new_display() {
-  
+
   local virtual_width=$1
   local virtual_height=$2
   local virtual_scale=$3
   local client_ip=$4
- 
+
   # Find first available VIRTUAL display
   local virtual_display=$(xrandr | grep "VIRTUAL.*disconnected" | head -1 | awk '{print $1}')
-  
-  # TODO: pick random/free port in a range 
+
+  # If no virtual display is available take the 1st available output
+  # Ref https://bbs.archlinux.org/viewtopic.php?id=180904
+  if [ -z $vitual_display ]; then
+    local virtual_display=$(xrandr | grep "disconnected" | head -1 | awk '{print $1}')
+  fi
+
+  # TODO: pick random/free port in a range
   local virtual_port=5999
-  
+
   # Build the mode for the virtual display
+  echo "cvt ${virtual_width} ${virtual_height} 60 | grep "Modeline" | cut -d' ' -f 2-17"
   local mode=$(cvt ${virtual_width} ${virtual_height} 60 | grep "Modeline" | cut -d' ' -f 2-17)
+  echo "echo "$mode" | awk '{print $1}')"
   local mode_name=$(echo "$mode" | awk '{print $1}')
 
   # ID of the new virtual display
   local virtual_display_id="${virtual_display} ${mode_name} ${virtual_port} ${client_ip}"
 
   # Create Virtual Display
+  echo $mode
+  echo "xrandr --output ${virtual_display} --mode ${mode_name} --scale ${virtual_scale}x${virtual_scale};"
   xrandr --newmode $mode
   {  xrandr --addmode ${virtual_display} $mode_name && \
      xrandr --output ${virtual_display} --mode ${mode_name} --scale ${virtual_scale}x${virtual_scale}; \
   } || { _rm_virt_display; _error "Couldn't create virtual display"; }
-  
+
   ## Create secure SSH tunnel with the client
   ssh -f -C -NT -R "5900:127.0.0.1:${virtual_port}" -o "ExitOnForwardFailure yes" "${client_ip}" -p 8022 || { _rm_virt_display; _error "Couldn't create ssh tunnel (did you start sshd on the client?)"; }
-  
+
   ## Start vnc
   local vnc_logfile="$PWD/logs/${virtual_display}.log"
   x11vnc --auth guess -localhost -forever -rfbport ${virtual_port} \
@@ -69,12 +79,12 @@ virtual_new_display() {
 }
 
 virtual_remove_display() {
-  
+
   local virtual_display=$1
   local mode_name=$2
   local virtual_port=$3
   local client_ip=$4
- 
+
   echo "Cleaning up..."
   _rm_virt_display
 }
